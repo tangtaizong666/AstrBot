@@ -122,6 +122,10 @@ export interface EnabledPatch {
   enabled: boolean;
 }
 
+export interface ToolPermissionPatch {
+  permission: "admin" | "member";
+}
+
 export interface ProviderSourceConfigRequest {
   id?: string;
   config: DynamicConfig;
@@ -2357,6 +2361,15 @@ export interface SetToolEnabledArgs {
   body: EnabledPatch;
 }
 
+export interface SetToolPermissionPath {
+  tool_id: string;
+}
+
+export interface SetToolPermissionArgs {
+  path: SetToolPermissionPath;
+  body: ToolPermissionPatch;
+}
+
 export interface UpdateTraceSettingsArgs {
   body: TraceSettingsRequest;
 }
@@ -3277,6 +3290,9 @@ export const openApiV1 = {
   },
   setToolEnabled(args: SetToolEnabledArgs, config?: AxiosRequestConfig) {
     return request<SuccessEnvelope>("PATCH", "/tools/{tool_id}/enabled", args, config);
+  },
+  setToolPermission(args: SetToolPermissionArgs, config?: AxiosRequestConfig) {
+    return request<SuccessEnvelope>("PATCH", "/tools/{tool_id}/permission", args, config);
   },
   getTraceSettings(args?: undefined, config?: AxiosRequestConfig) {
     return request<SuccessEnvelope>("GET", "/trace/settings", args, config);

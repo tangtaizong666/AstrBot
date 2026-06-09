@@ -885,6 +885,14 @@ export const toolApi = {
       }),
     );
   },
+  setPermission(toolId: string, permission: 'admin' | 'member') {
+    return typed<OpenConfig>(
+      openApiV1.setToolPermission({
+        path: { tool_id: toolId },
+        body: { permission },
+      }),
+    );
+  },
 };
 
 export const mcpApi = {

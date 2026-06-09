@@ -11,6 +11,7 @@ from astrbot.dashboard.schemas import (
     McpServerRequest,
     ModelScopeSyncRequest,
     ToolEnabledRequest,
+    ToolPermissionRequest,
 )
 from astrbot.dashboard.services.tools_service import ToolsService, ToolsServiceError
 
@@ -113,6 +114,19 @@ async def _toggle_tool(
     )
 
 
+async def _update_tool_permission(
+    tool_id: str,
+    permission: str,
+    service: ToolsService,
+):
+    return await _run(
+        lambda: service.update_tool_permission(
+            {"name": tool_id, "permission": permission}
+        ),
+        result_as_message=True,
+    )
+
+
 async def _create_mcp_server(body: dict[str, Any], service: ToolsService):
     if "enabled" in body and "active" not in body:
         body["active"] = body.pop("enabled")
@@ -188,6 +202,16 @@ async def set_tool_enabled(
     service: ToolsService = Depends(get_service),
 ):
     return await _toggle_tool(tool_id, payload.enabled, service)
+
+
+@router.patch("/tools/{tool_id:path}/permission")
+async def set_tool_permission(
+    tool_id: str,
+    payload: ToolPermissionRequest,
+    _auth: AuthContext = Depends(require_tool_scope),
+    service: ToolsService = Depends(get_service),
+):
+    return await _update_tool_permission(tool_id, payload.permission, service)
 
 
 @router.get("/mcp/servers")
@@ -318,6 +342,21 @@ async def toggle_dashboard_tool(
     body = await _json_or_empty(request)
     tool_id = _required_text(body.get("name"), "name")
     return await _toggle_tool(tool_id, bool(body.get("activate")), service)
+
+
+@dashboard_router.post("/tools/permission")
+async def update_dashboard_tool_permission(
+    request: Request,
+    _username: str = Depends(require_dashboard_user),
+    service: ToolsService = Depends(get_service),
+):
+    body = await _json_or_empty(request)
+    tool_id = _required_text(body.get("name"), "name")
+    return await _update_tool_permission(
+        tool_id,
+        str(body.get("permission") or ""),
+        service,
+    )
 
 
 @dashboard_router.get("/tools/mcp/servers")

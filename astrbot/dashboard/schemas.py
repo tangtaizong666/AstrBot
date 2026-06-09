@@ -238,6 +238,10 @@ class ToolEnabledRequest(BaseModel):
     enabled: bool
 
 
+class ToolPermissionRequest(BaseModel):
+    permission: str
+
+
 class McpServerRequest(OpenModel):
     name: str | None = None
     oldName: str | None = None

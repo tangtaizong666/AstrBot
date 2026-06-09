@@ -4360,6 +4360,36 @@
         }
       }
     },
+    "/api/v1/tools/{tool_id}/permission": {
+      "patch": {
+        "tags": [
+          "Tools"
+        ],
+        "summary": "Update an LLM tool permission",
+        "operationId": "setToolPermission",
+        "x-astrbot-scope": "tool",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ToolId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToolPermissionPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Ok"
+          }
+        }
+      }
+    },
     "/api/v1/mcp/servers": {
       "get": {
         "tags": [
@@ -8420,6 +8450,22 @@
         "properties": {
           "enabled": {
             "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ToolPermissionPatch": {
+        "type": "object",
+        "required": [
+          "permission"
+        ],
+        "properties": {
+          "permission": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "member"
+            ]
           }
         },
         "additionalProperties": false

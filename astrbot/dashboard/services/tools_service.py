@@ -3,7 +3,7 @@ from __future__ import annotations
 import traceback
 from typing import Any
 
-from astrbot.core import logger
+from astrbot.core import logger, sp
 from astrbot.core.agent.mcp_client import MCPTool, validate_mcp_stdio_config
 from astrbot.core.core_lifecycle import AstrBotCoreLifecycle
 from astrbot.core.star import star_map
@@ -316,6 +316,59 @@ class ToolsService:
             raise ToolsServiceError(f"Sync failed: {exc!s}") from exc
 
     @staticmethod
+    def get_tool_permission(tool_name: str) -> tuple[str, bool]:
+        perms_store = sp.get("tool_permissions", {}, scope="global", scope_id="global")
+        defaults = (
+            perms_store.get("_default", {}) if isinstance(perms_store, dict) else {}
+        )
+        if tool_name in defaults:
+            return defaults[tool_name], True
+        return "member", False
+
+    def update_tool_permission(self, data: Any) -> str:
+        try:
+            tool_name = data.get("name")
+            permission = data.get("permission")
+
+            if not tool_name or permission not in ("admin", "member"):
+                raise ToolsServiceError(
+                    "name and permission (admin or member) are required"
+                )
+
+            if self.tool_mgr.is_builtin_tool(tool_name):
+                raise ToolsServiceError(
+                    "Builtin tools do not support per-tool permission configuration."
+                )
+
+            if not any(tool.name == tool_name for tool in self.tool_mgr.func_list):
+                raise ToolsServiceError(f"Tool '{tool_name}' not found")
+
+            perms_store = sp.get(
+                "tool_permissions", {}, scope="global", scope_id="global"
+            )
+            if not isinstance(perms_store, dict):
+                perms_store = {}
+            defaults = perms_store.get("_default", {})
+            if not isinstance(defaults, dict):
+                defaults = {}
+            defaults[tool_name] = permission
+            perms_store["_default"] = defaults
+            sp.put(
+                "tool_permissions",
+                perms_store,
+                scope="global",
+                scope_id="global",
+            )
+            return f"Tool '{tool_name}' permission set to {permission}"
+        except ToolsServiceError:
+            raise
+        except Exception as exc:
+            logger.error(traceback.format_exc())
+            raise ToolsServiceError(
+                f"Failed to update tool permission: {exc!s}"
+            ) from exc
+
+    @staticmethod
     def _build_server_config(server_data: dict) -> tuple[bool, dict]:
         has_valid_config = False
         server_config = {"active": server_data.get("active", True)}
@@ -490,7 +543,7 @@ class ToolsService:
             origin = "unknown"
             origin_name = "unknown"
 
-        return {
+        tool_info = {
             "name": tool.name,
             "description": tool.description,
             "parameters": tool.parameters,
@@ -501,3 +554,8 @@ class ToolsService:
             "builtin_config_statuses": builtin_config_statuses,
             "builtin_config_tags": builtin_config_tags,
         }
+        if not readonly:
+            permission, configured = self.get_tool_permission(tool.name)
+            tool_info["permission"] = permission
+            tool_info["permission_configured"] = configured
+        return tool_info

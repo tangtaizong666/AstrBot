@@ -1582,6 +1582,46 @@ async def test_v1_plugins_accept_api_key(
 
 
 @pytest.mark.asyncio
+async def test_tool_permission_routes_call_service(
+    asgi_app: FastAPI,
+    asgi_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    captured_payloads = []
+    tools_service = asgi_app.state.services.tools
+
+    def fake_update_tool_permission(payload):
+        captured_payloads.append(copy.deepcopy(payload))
+        return f"permission set for {payload['name']}"
+
+    monkeypatch.setattr(
+        tools_service,
+        "update_tool_permission",
+        fake_update_tool_permission,
+    )
+
+    v1_response = await asgi_client.patch(
+        "/api/v1/tools/plugin/foo/permission",
+        json={"permission": "admin"},
+        headers=_jwt_headers(),
+    )
+    legacy_response = await asgi_client.post(
+        "/api/tools/permission",
+        json={"name": "legacy_tool", "permission": "member"},
+        headers=_jwt_headers(),
+    )
+
+    assert v1_response.status_code == 200
+    assert v1_response.json()["status"] == "ok"
+    assert legacy_response.status_code == 200
+    assert legacy_response.json()["status"] == "ok"
+    assert captured_payloads == [
+        {"name": "plugin/foo", "permission": "admin"},
+        {"name": "legacy_tool", "permission": "member"},
+    ]
+
+
+@pytest.mark.asyncio
 async def test_v1_plugin_enabled_patch_calls_service(
     asgi_client: httpx.AsyncClient,
     fake_core_lifecycle,
